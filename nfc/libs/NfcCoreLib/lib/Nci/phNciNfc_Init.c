@@ -12,6 +12,10 @@ static NFCSTATUS phNciNfc_Init(void *pContext);
 static NFCSTATUS phNciNfc_ProcessInitRsp(void *pContext, NFCSTATUS wStatus);
 static NFCSTATUS phNciNfc_CompleteInitSequence(void *pContext, NFCSTATUS wStatus);
 
+static NFCSTATUS phNciNfc_DelayForResetNtfProc(void* pContext, NFCSTATUS wStatus);
+static NFCSTATUS phNciNfc_DelayForResetNtfInit(void* pContext);
+static NFCSTATUS phNciNfc_DelayForResetNtf(void* pContext);
+
 static NFCSTATUS phNciNfc_InitReset(void *pContext);
 static NFCSTATUS phNciNfc_ProcessResetRsp(void *pContext, NFCSTATUS wStatus);
 static NFCSTATUS phNciNfc_SendReset(void *pContext);
@@ -25,7 +29,9 @@ static NFCSTATUS phNciNfc_RegAllNtfs(void* pContext);
 
 /*Global Varibales for Init Sequence Handler*/
 phNciNfc_SequenceP_t gphNciNfc_InitSequence[] = {
+    {&phNciNfc_DelayForResetNtfInit, &phNciNfc_DelayForResetNtfProc},
     {&phNciNfc_InitReset, &phNciNfc_ProcessResetRsp},
+    {&phNciNfc_DelayForResetNtf, &phNciNfc_DelayForResetNtfProc},
     {&phNciNfc_Init, &phNciNfc_ProcessInitRsp},
     {NULL, &phNciNfc_CompleteInitSequence}
 };
@@ -41,6 +47,9 @@ phNciNfc_SequenceP_t gphNciNfc_NfccResetSequence[] = {
     {&phNciNfc_SendReset, &phNciNfc_ProcessResetRsp},
     {NULL, &phNciNfc_CompleteNfccResetSequence}
 };
+
+/** Core Reset notification timeout */
+#define PHNCINFC_CORE_RESET_NTF_TIMEOUT        (30)
 
 static NFCSTATUS phNciNfc_Init(void *pContext)
 {
@@ -151,31 +160,95 @@ static NFCSTATUS phNciNfc_ProcessInitRsp(void *pContext, NFCSTATUS Status)
         {
             wStatus = NFCSTATUS_FAILED;
         }
-
-        if((NFCSTATUS_SUCCESS == wStatus) &&
-            (0 == pNciContext->tInitInfo.bSkipRegisterAllNtfs))
-        {
-            wStatus = phNciNfc_RegAllNtfs(pNciContext);
-            if(NFCSTATUS_SUCCESS == wStatus)
-            {
-                pNciContext->dwNtfTimerId = phOsalNfc_Timer_Create();
-                if(PH_OSALNFC_TIMER_ID_INVALID == pNciContext->dwNtfTimerId)
-                {
-                    PH_LOG_NCI_CRIT_STR("Notification Timer Create failed!!");
-                    wStatus = NFCSTATUS_INSUFFICIENT_RESOURCES;
-                }
-                else
-                {
-                    PH_LOG_NCI_INFO_STR("Notification Timer Created Successfully");
-                }
-            }
-        }
     }
     else
     {
         wStatus = NFCSTATUS_INVALID_PARAMETER;
     }
     PH_LOG_NCI_FUNC_EXIT();
+    return wStatus;
+}
+
+
+static void phNciNfc_ResetNtfDelayCb(uint32_t dwTimerId, void *pContext)
+{
+    pphNciNfc_Context_t pNciContext = (pphNciNfc_Context_t)pContext;
+    /* Internal event is made failed in order to remain in same state */
+    NFCSTATUS wStatus = NFCSTATUS_SUCCESS;
+    UNUSED(dwTimerId);
+    PH_LOG_LIBNFC_FUNC_ENTRY();
+    if (NULL != pNciContext)
+    {
+        (void)phOsalNfc_Timer_Stop(pNciContext->dwNtfTimerId);
+        (void)phOsalNfc_Timer_Delete(pNciContext->dwNtfTimerId);
+
+        pNciContext->dwNtfTimerId = 0;
+
+        wStatus = phNciNfc_GenericSequence(pNciContext, NULL, wStatus);
+    }
+    PH_LOG_LIBNFC_FUNC_EXIT();
+    return;
+}
+
+static NFCSTATUS phNciNfc_DelayForResetNtfProc(void* pContext, NFCSTATUS status)
+{
+    UNUSED(status);
+    UNUSED(pContext);
+    PH_LOG_LIBNFC_FUNC_ENTRY();
+    PH_LOG_LIBNFC_FUNC_EXIT();
+    return NFCSTATUS_SUCCESS;
+}
+
+NFCSTATUS phNciNfc_DelayForResetNtfInit(void* pContext)
+{
+    NFCSTATUS wStatus = NFCSTATUS_SUCCESS;
+    pphNciNfc_Context_t pNciContext = (pphNciNfc_Context_t)pContext;
+
+    PH_LOG_LIBNFC_FUNC_ENTRY();
+
+    if (0 == pNciContext->tInitInfo.bSkipRegisterAllNtfs)
+    {
+        wStatus = phNciNfc_RegAllNtfs(pNciContext);
+    }
+
+    if (wStatus == NFCSTATUS_SUCCESS)
+    {
+        wStatus = phNciNfc_DelayForResetNtf(pContext);
+    }
+    PH_LOG_LIBNFC_FUNC_EXIT();
+    return wStatus;
+}
+
+NFCSTATUS phNciNfc_DelayForResetNtf(void* pContext)
+{
+    NFCSTATUS wStatus = NFCSTATUS_SUCCESS;
+    pphNciNfc_Context_t pNciContext = (pphNciNfc_Context_t)pContext;
+
+    PH_LOG_LIBNFC_FUNC_ENTRY();
+    if (NULL != pNciContext)
+    {
+        PH_LOG_LIBNFC_CRIT_U32MSG("Delay to receive Core Reset ntf", PHNCINFC_CORE_RESET_NTF_TIMEOUT);
+
+        pNciContext->dwNtfTimerId = phOsalNfc_Timer_Create();
+        if (PH_OSALNFC_TIMER_ID_INVALID != pNciContext->dwNtfTimerId)
+        {
+            wStatus = phOsalNfc_Timer_Start(pNciContext->dwNtfTimerId,
+                                            PHNCINFC_CORE_RESET_NTF_TIMEOUT,
+                                            &phNciNfc_ResetNtfDelayCb,
+                                            (void *)pNciContext);
+            if (NFCSTATUS_SUCCESS == wStatus)
+            {
+                wStatus = NFCSTATUS_PENDING;
+            }
+            else
+            {
+                (void)phOsalNfc_Timer_Delete(pNciContext->dwNtfTimerId);
+                pNciContext->dwNtfTimerId = 0;
+                wStatus = NFCSTATUS_FAILED;
+            }
+        }
+    }
+    PH_LOG_LIBNFC_FUNC_EXIT();
     return wStatus;
 }
 
@@ -217,37 +290,68 @@ static NFCSTATUS phNciNfc_ProcessResetRsp(void *pContext, NFCSTATUS Status)
     PH_LOG_NCI_FUNC_ENTRY();
     if(NULL != pNciContext)
     {
-        if((NFCSTATUS_RESPONSE_TIMEOUT != Status) && (pNciContext->RspBuffInfo.wLen == 3))
+        if(NFCSTATUS_RESPONSE_TIMEOUT != Status)
         {
-            /*Check Status Byte*/
-            if (pNciContext->RspBuffInfo.pBuff[0] == PH_NCINFC_STATUS_OK)
+            if (pNciContext->RspBuffInfo.wLen == 3)
             {
-                /* Nfcc supported Nci version */
-                pNciContext->ResetInfo.NciVer = pNciContext->RspBuffInfo.pBuff[1];
-
-                if((pNciContext->ResetInfo.NciVer & PH_NCINFC_VERSION_MAJOR_MASK) <=
-                   (PH_NCI1xNFC_VERSION & PH_NCINFC_VERSION_MAJOR_MASK))
+                /*Check Status Byte*/
+                if (pNciContext->RspBuffInfo.pBuff[0] == PH_NCINFC_STATUS_OK)
                 {
-                    /* Update Reset type */
-                    if(pNciContext->RspBuffInfo.pBuff[2] == phNciNfc_ResetType_KeepConfig)
+                    /* Nfcc supported Nci version */
+                    pNciContext->ResetInfo.NciVer = pNciContext->RspBuffInfo.pBuff[1];
+
+                    if ((pNciContext->ResetInfo.NciVer & PH_NCINFC_VERSION_MAJOR_MASK) <=
+                        (PH_NCI1xNFC_VERSION & PH_NCINFC_VERSION_MAJOR_MASK))
                     {
-                        PH_LOG_NCI_INFO_STR("Nfcc reseted to 'phNciNfc_ResetType_KeepConfig'");
-                        pNciContext->ResetInfo.ResetTypeRsp = phNciNfc_ResetType_KeepConfig;
-                    }else
-                    {
-                        PH_LOG_NCI_INFO_STR("Nfcc reseted to 'phNciNfc_ResetType_ResetConfig'");
-                        pNciContext->ResetInfo.ResetTypeRsp = phNciNfc_ResetType_ResetConfig;
+                        /* Update Reset type */
+                        if (pNciContext->RspBuffInfo.pBuff[2] == phNciNfc_ResetType_KeepConfig)
+                        {
+                            PH_LOG_NCI_INFO_STR("Nfcc reseted to 'phNciNfc_ResetType_KeepConfig'");
+                            pNciContext->ResetInfo.ResetTypeRsp = phNciNfc_ResetType_KeepConfig;
+                        }
+                        else
+                        {
+                            PH_LOG_NCI_INFO_STR("Nfcc reseted to 'phNciNfc_ResetType_ResetConfig'");
+                            pNciContext->ResetInfo.ResetTypeRsp = phNciNfc_ResetType_ResetConfig;
+                        }
+
+                        wStatus = NFCSTATUS_SUCCESS;
                     }
-
-                    wStatus = NFCSTATUS_SUCCESS;
-                }else
+                    else
+                    {
+                        PH_LOG_NCI_INFO_STR("Unsupported NCI version 0x%02x", pNciContext->ResetInfo.NciVer);
+                        wStatus = NFCSTATUS_FAILED;
+                    }
+                }
+                else
                 {
-                    PH_LOG_NCI_INFO_STR("Unsupported NCI version 0x%02x", pNciContext->ResetInfo.NciVer);
                     wStatus = NFCSTATUS_FAILED;
                 }
-            }else
+            }
+            else if (pNciContext->RspBuffInfo.wLen == 1)
             {
-                wStatus = NFCSTATUS_FAILED;
+                /*Check Status Byte*/
+                if (pNciContext->RspBuffInfo.pBuff[0] == PH_NCINFC_STATUS_OK)
+                {
+                    if ((pNciContext->ResetInfo.NciVer & PH_NCINFC_VERSION_MAJOR_MASK) ==
+                        (PH_NCI2xNFC_VERSION & PH_NCINFC_VERSION_MAJOR_MASK))
+                    {
+                        wStatus = NFCSTATUS_SUCCESS;
+                    }
+                    else
+                    {
+                        PH_LOG_NCI_INFO_STR("Unsupported NCI version 0x%02x", pNciContext->ResetInfo.NciVer);
+                        wStatus = NFCSTATUS_FAILED;
+                    }
+                }
+                else
+                {
+                    wStatus = NFCSTATUS_FAILED;
+                }
+            }
+            else
+            {
+                wStatus = NFCSTATUS_INVALID_PARAMETER;
             }
         }else
         {
@@ -352,6 +456,8 @@ phNciNfc_ResetNtfCb(void*     pContext,
 {
     pphNciNfc_Context_t pNciCtx = (pphNciNfc_Context_t )pContext;
     pphNciNfc_TransactInfo_t pTransInfo = pInfo;
+    uint8_t wDataLen;
+    uint8_t *pBuff;
     NFCSTATUS wStatus;
 
     wStatus  = status;
@@ -362,14 +468,83 @@ phNciNfc_ResetNtfCb(void*     pContext,
         /* Reset notification received, take necessary action */
         PH_LOG_NCI_INFO_STR("Received RESET notification from NFCC");
 
-        /* Reset Sender statemachine */
-        (void )phNciNfc_CoreResetSenderStateMachine(&pNciCtx->NciCoreContext);
-        (void )phTmlNfc_WriteAbort(pNciCtx->NciCoreContext.pHwRef);
-
-        if(NULL != pNciCtx->tRegListInfo.pResetNtfCb)
+        if (pNciCtx->dwNtfTimerId != 0)
         {
-            pNciCtx->tRegListInfo.pResetNtfCb(pNciCtx->tRegListInfo.ResetNtfCtxt,
-                        eNciNfc_NciResetNtf,NULL,NFCSTATUS_SUCCESS);
+            (void)phOsalNfc_Timer_Stop(pNciCtx->dwNtfTimerId);
+            (void)phOsalNfc_Timer_Delete(pNciCtx->dwNtfTimerId);
+
+            pNciCtx->dwNtfTimerId = 0;
+
+            if (pTransInfo->wLength >= 5)
+            {
+                /* Nfcc supported Nci version */
+                pNciCtx->ResetInfo.NciVer = pTransInfo->pbuffer[2];
+                if ((pNciCtx->ResetInfo.NciVer & PH_NCINFC_VERSION_MAJOR_MASK) ==
+                    (PH_NCI2xNFC_VERSION & PH_NCINFC_VERSION_MAJOR_MASK))
+                {
+                    /* Update Reset type */
+                    if (pTransInfo->pbuffer[1] == phNciNfc_ResetType_KeepConfig)
+                    {
+                        PH_LOG_NCI_INFO_STR("Nfcc reseted to 'phNciNfc_ResetType_KeepConfig'");
+                        pNciCtx->ResetInfo.ResetTypeRsp = phNciNfc_ResetType_KeepConfig;
+                    }
+                    else
+                    {
+                        PH_LOG_NCI_INFO_STR("Nfcc reseted to 'phNciNfc_ResetType_ResetConfig'");
+                        pNciCtx->ResetInfo.ResetTypeRsp = phNciNfc_ResetType_ResetConfig;
+                    }
+
+                    /*Manufacturer ID*/
+                    pNciCtx->InitRspParams.ManufacturerId = pTransInfo->pbuffer[3];
+                    if (pNciCtx->InitRspParams.ManufacturerId != 0x00)
+                    {
+                        wDataLen = pTransInfo->pbuffer[4];
+                        if (wDataLen == pTransInfo->wLength - 5)
+                        {
+                            pBuff = (uint8_t *)phOsalNfc_GetMemory(wDataLen);
+                            if (pBuff != NULL)
+                            {
+                                pNciCtx->InitRspParams.ManufacturerInfo.ManufacturerInfoBuffer = pBuff;
+                                pNciCtx->InitRspParams.ManufacturerInfo.ManufacturerInfoLength = wDataLen;
+                                memcpy(pBuff, &pTransInfo->pbuffer[5], wDataLen);
+
+                                /*Reset Trigger*/
+                                if (pTransInfo->pbuffer[0] == 0) /*If error is unrecoverable*/
+                                    wStatus = NFCSTATUS_FAILED;
+                                else
+                                    wStatus = NFCSTATUS_SUCCESS;
+                            }
+                            else
+                            {
+                                wStatus = NFCSTATUS_FAILED;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    PH_LOG_NCI_INFO_STR("Unsupported NCI version 0x%02x", pNciCtx->ResetInfo.NciVer);
+                    wStatus = NFCSTATUS_FAILED;
+                }
+            }
+            else
+            {
+                wStatus = NFCSTATUS_INVALID_PARAMETER;
+            }
+
+            wStatus = phNciNfc_GenericSequence(pNciCtx, pInfo, status);
+        }
+        else
+        {
+            /* Reset Sender statemachine */
+            (void)phNciNfc_CoreResetSenderStateMachine(&pNciCtx->NciCoreContext);
+            (void)phTmlNfc_WriteAbort(pNciCtx->NciCoreContext.pHwRef);
+
+            if (NULL != pNciCtx->tRegListInfo.pResetNtfCb)
+            {
+                pNciCtx->tRegListInfo.pResetNtfCb(pNciCtx->tRegListInfo.ResetNtfCtxt,
+                        eNciNfc_NciResetNtf, pInfo, NFCSTATUS_SUCCESS);
+            }
         }
     }
     PH_LOG_NCI_FUNC_EXIT();
