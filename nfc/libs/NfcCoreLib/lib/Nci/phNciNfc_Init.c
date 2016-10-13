@@ -71,6 +71,7 @@ static NFCSTATUS phNciNfc_ProcessInitRsp(void *pContext, NFCSTATUS Status)
     NFCSTATUS wStatus = Status;
     phNciNfc_sInitRspParams_t *pInitRsp = NULL;
     pphNciNfc_Context_t pNciContext = pContext;
+    uint8_t *pBuff;
     uint8_t Offset = 0;
     uint16_t wTemp = 0;
 
@@ -120,11 +121,16 @@ static NFCSTATUS phNciNfc_ProcessInitRsp(void *pContext, NFCSTATUS Status)
                     pInitRsp->ManufacturerId = pNciContext->RspBuffInfo.pBuff[Offset++];
                     if(pInitRsp->ManufacturerId != 0x00)
                     {
-                        /*Decided by Manufacturer*/
-                        pInitRsp->ManufacturerInfo.Byte0 = pNciContext->RspBuffInfo.pBuff[Offset++];
-                        pInitRsp->ManufacturerInfo.Byte1 = pNciContext->RspBuffInfo.pBuff[Offset++];
-                        pInitRsp->ManufacturerInfo.Byte2 = pNciContext->RspBuffInfo.pBuff[Offset++];
-                        pInitRsp->ManufacturerInfo.Byte3 = pNciContext->RspBuffInfo.pBuff[Offset++];
+                        pBuff = (uint8_t *)phOsalNfc_GetMemory(PHNCINFC_CORE_MANUF_INFO_LEN_NCI1x);
+                        if (pBuff != NULL)
+                        {
+                            pNciContext->InitRspParams.ManufacturerInfo.ManufacturerInfoBuffer = pBuff;
+                            pNciContext->InitRspParams.ManufacturerInfo.ManufacturerInfoLength =
+                                                                    PHNCINFC_CORE_MANUF_INFO_LEN_NCI1x;
+                            /*Decided by Manufacturer*/
+                            memcpy(pBuff, &pNciContext->RspBuffInfo.pBuff[Offset],
+                                                                    PHNCINFC_CORE_MANUF_INFO_LEN_NCI1x);
+                        }
                     }
 
                     wStatus = phNciNfc_CoreIfSetMaxCtrlPacketSize(&(pNciContext->NciCoreContext),

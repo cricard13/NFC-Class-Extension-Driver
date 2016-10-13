@@ -238,10 +238,8 @@ typedef struct phNfc_sDeviceCapabilities
 
     struct
     {
-        uint8_t Byte0;                      /**< Byte 0*/
-        uint8_t Byte1;                      /**< Byte 1*/
-        uint8_t Byte2;                      /**< Byte 2*/
-        uint8_t Byte3;                      /**< Byte 3*/
+        uint8_t ManufacturerInfoLength;
+        uint8_t *ManufacturerInfoBuffer;    /**<Manufacturer information NCI*/
     } ManufactureInfo;
 
     struct

@@ -2291,14 +2291,10 @@ NFCSTATUS phLibNfc_Mgt_GetstackCapabilities(phLibNfc_StackCapabilities_t* phLibN
         phLibNfc_StackCapabilities->psDevCapabilities.ManufacturerId =
             PHLIBNFC_GETCONTEXT()->tNfccFeatures.ManufacturerId;
         
-        phLibNfc_StackCapabilities->psDevCapabilities.ManufactureInfo.Byte0 =
-            PHLIBNFC_GETCONTEXT()->tNfccFeatures.ManufactureInfo.Byte0;
-        phLibNfc_StackCapabilities->psDevCapabilities.ManufactureInfo.Byte1 =
-            PHLIBNFC_GETCONTEXT()->tNfccFeatures.ManufactureInfo.Byte1;
-        phLibNfc_StackCapabilities->psDevCapabilities.ManufactureInfo.Byte2 =
-            PHLIBNFC_GETCONTEXT()->tNfccFeatures.ManufactureInfo.Byte2;
-        phLibNfc_StackCapabilities->psDevCapabilities.ManufactureInfo.Byte3 =
-            PHLIBNFC_GETCONTEXT()->tNfccFeatures.ManufactureInfo.Byte3;
+        phLibNfc_StackCapabilities->psDevCapabilities.ManufactureInfo.ManufacturerInfoLength =
+            PHLIBNFC_GETCONTEXT()->tNfccFeatures.ManufactureInfo.ManufacturerInfoLength;
+        phLibNfc_StackCapabilities->psDevCapabilities.ManufactureInfo.ManufacturerInfoBuffer =
+            PHLIBNFC_GETCONTEXT()->tNfccFeatures.ManufactureInfo.ManufacturerInfoBuffer;
 
         phLibNfc_StackCapabilities->psDevCapabilities.PowerStateInfo.SwitchOffState =
             PHLIBNFC_GETCONTEXT()->tNfccFeatures.PowerStateInfo.SwitchOffState;
