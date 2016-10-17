@@ -344,22 +344,28 @@ NFCSTATUS phNciNfc_StartDiscovery(void* pNciHandle,
             bNoofConfigs++;
         }
         /* Check whether Polling loop to be enabled for Listen NFC-F Technology */
-        if(pPollConfig->ListenNfcAActive)
+        if(pPollConfig->ListenNfcAActive ||
+            ((1 == pPollConfig->ListenNfcFActive && ((pNciContext->ResetInfo.NciVer & PH_NCINFC_VERSION_MAJOR_MASK) ==
+                                                     (PH_NCI2xNFC_VERSION & PH_NCINFC_VERSION_MAJOR_MASK)))))
         {
             bNoofConfigs++;
         }
         /* Check whether Polling loop to be enabled for Listen NFC-F Technology */
-        if(pPollConfig->ListenNfcFActive)
+        if(pPollConfig->ListenNfcFActive && ((pNciContext->ResetInfo.NciVer & PH_NCINFC_VERSION_MAJOR_MASK) <=
+                                             (PH_NCI1xNFC_VERSION & PH_NCINFC_VERSION_MAJOR_MASK)))
         {
             bNoofConfigs++;
         }
         /* Check whether Polling loop to be enabled for Listen NFC-F Technology */
-        if(pPollConfig->PollNfcAActive)
+        if(pPollConfig->PollNfcAActive ||
+            ((1 == pPollConfig->PollNfcFActive && ((pNciContext->ResetInfo.NciVer & PH_NCINFC_VERSION_MAJOR_MASK) ==
+                                                   (PH_NCI2xNFC_VERSION & PH_NCINFC_VERSION_MAJOR_MASK)))))
         {
             bNoofConfigs++;
         }
         /* Check whether Polling loop to be enabled for Listen NFC-F Technology */
-        if(pPollConfig->PollNfcFActive)
+        if(pPollConfig->PollNfcFActive && ((pNciContext->ResetInfo.NciVer & PH_NCINFC_VERSION_MAJOR_MASK) <=
+                                           (PH_NCI1xNFC_VERSION & PH_NCINFC_VERSION_MAJOR_MASK)))
         {
             bNoofConfigs++;
         }
