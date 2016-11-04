@@ -25,8 +25,11 @@
 
 #define PH_NCI1xNFC_VERSION_MAJOR                   (0x01)
 #define PH_NCI1xNFC_VERSION_MINOR                   (0x00)
+#define PH_NCI2xNFC_VERSION_MAJOR                   (0x02)
+#define PH_NCI2xNFC_VERSION_MINOR                   (0x00)
 
 #define PH_NCI1xNFC_VERSION                         ((PH_NCI1xNFC_VERSION_MAJOR << 4) | PH_NCI1xNFC_VERSION_MINOR)
+#define PH_NCI2xNFC_VERSION                         ((PH_NCI2xNFC_VERSION_MAJOR << 4) | PH_NCI2xNFC_VERSION_MINOR)
 
 
 /**
