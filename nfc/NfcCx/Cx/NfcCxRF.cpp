@@ -3501,13 +3501,6 @@ NfcCxRFInterfaceRemoteDevNtfCB(
     {
         phLibNfc_RemoteDevList_t *psRemoteDev = psRemoteDevList;
 
-        for (uint8_t i = 1; i < uNofRemoteDev; i++) {
-            if (psRemoteDevList[i].psRemoteDevInfo->RemDevType == phNfc_eNfcIP1_Target) {
-                psRemoteDev = &psRemoteDevList[i];
-                break;
-            }
-        }
-
         rfInterface->pLibNfcContext->DiscoveryStatus = NfcStatus;
         TRACE_LINE(LEVEL_INFO, "RemDevType=%!phNfc_eRFDevType_t!", psRemoteDev->psRemoteDevInfo->RemDevType);
 
