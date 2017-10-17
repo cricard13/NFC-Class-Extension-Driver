@@ -75,28 +75,12 @@ phLibNfc_Sequence_t gphLibNfc_HciInitSequenceNci1x[] = {
     {NULL, &phLibNfc_HciInitComplete}
 };
 
-phLibNfc_Sequence_t gphLibNfc_HciInitSequenceNci2x[] = {
-    {&phLibNfc_HciOpenAdmPipeNci2x, &phLibNfc_HciOpenAdmPipeProc},
-    {&phLibNfc_HciGetSessionIdentity, &phLibNfc_HciGetSessionIdentityProc},
-    {&phLibNfc_HciGetHostList, &phLibNfc_HciGetHostListProc},
-    {NULL, &phLibNfc_HciInitComplete}
-};
-
 phLibNfc_Sequence_t gphLibNfc_HciChildDevCommonInitSequenceNci1x[] =
 {
     { &phLibNfc_HciGetHostList, &phLibNfc_HciGetHostListProc },
     { &phLibNfc_DelayForSeNtf, &phLibNfc_DelayForSeNtfProc },
     { &phLibNfc_HciGetHostTypeList,&phLibNfc_HciGetHostTypeListProc },
     { NULL, &phLibNfc_HciChildDevCommonInitComplete },
-};
-
-phLibNfc_Sequence_t gphLibNfc_HciChildDevApduPipeInitSequenceNci1x[] =
-{
-    { &phLibNfc_HciCreateApduPipe,&phLibNfc_HciCreateApduPipeProc },
-    { &phLibNfc_HciOpenAPDUPipe,&phLibNfc_HciOpenAPDUPipeProc },
-    { &phLibNfc_DelayForSeNtf, &phLibNfc_DelayForSeNtfProc },
-    { &phLibNfc_HciSetSessionIdentity, &phLibNfc_HciSetSessionIdentityProc },
-    { NULL, &phLibNfc_HciChildDevInitComplete }
 };
 
 phLibNfc_Sequence_t gphLibNfc_HciChildDevCreateApduPipeInitSequenceNci1x[] =
@@ -114,8 +98,16 @@ phLibNfc_Sequence_t gphLibNfc_HciEndInitSequenceNci1x[] =
     { NULL, &phLibNfc_HciEndInitSequence}
 };
 
-phLibNfc_Sequence_t gphLibNfc_HciChildDevInitSequenceNci2x[] = {
+phLibNfc_Sequence_t gphLibNfc_HciInitSequenceNci2x[] =
+{
+    {&phLibNfc_HciOpenAdmPipeNci2x, &phLibNfc_HciOpenAdmPipeProc},
     { &phLibNfc_HciSetWhiteList, &phLibNfc_HciSetWhiteListProc },
+    { &phLibNfc_HciSetHostType, &phLibNfc_HciSetHostTypeProc },
+    { &phLibNfc_HciGetSessionIdentity, &phLibNfc_HciGetSessionIdentityProc },
+    { NULL, &phLibNfc_HciInitComplete}
+};
+
+phLibNfc_Sequence_t gphLibNfc_HciChildDevInitSequenceNci2x[] = {
     { &phLibNfc_NfceeModeSet, &phLibNfc_NfceeModeSetProc },
     { &phLibNfc_DelayForSeNtf, &phLibNfc_DelayForSeNtfProc },
     { NULL, &phLibNfc_HciChildDevInitComplete }
@@ -1492,6 +1484,7 @@ NFCSTATUS phLibNfc_HciChildDevInitComplete(void* pContext, NFCSTATUS status, voi
             {
                 PH_LOG_LIBNFC_INFO_STR("NFCEE initialization failed");
                 pLibCtx->tSeInfo.bSeState[bIndex] = phLibNfc_SeStateInvalid;
+                pLibCtx->tSeInfo.tSeList[bIndex].hSecureElement = NULL;
             }
         }
 
@@ -1505,7 +1498,14 @@ NFCSTATUS phLibNfc_HciChildDevInitComplete(void* pContext, NFCSTATUS status, voi
 
         if((wStatus == NFCSTATUS_FAILED) && (pLibCtx->sSeContext.nNfceeDiscNtf == 0))
         {
-            phLibNfc_LaunchNfceeDiscCompleteSequence(pLibCtx,wStatus,NULL);
+             PH_LOG_LIBNFC_INFO_STR("start here gphLibNfc_HciChildDevCommonInitSequenceNci1x");
+             PHLIBNFC_INIT_SEQUENCE(pLibCtx, gphLibNfc_HciChildDevCommonInitSequenceNci1x);
+             wStatus = phLibNfc_SeqHandler(pLibCtx, NFCSTATUS_SUCCESS, NULL);
+             if (NFCSTATUS_PENDING != wStatus)
+             {
+                 PH_LOG_LIBNFC_CRIT_STR("gphLibNfc_HciChildDevCommonInitSequenceNci1x sequence could not start!");
+                 wStatus = NFCSTATUS_FAILED;
+             }
         }
     }
     else
@@ -2427,7 +2427,9 @@ static BOOL phLibNfc_IsAPDUPipePresent(uint8_t hostId, void *pContext)
         pHciContext = pLibContext->pHciContext;
         if ((hostId >= phHciNfc_e_ProprietaryHostID_Min) && (hostId <= phHciNfc_e_ProprietaryHostID_Max))
         {
-            if (pHciContext->aSEPipeList[PHHCI_ESE_APDU_PIPE_LIST_INDEX].bPipeId == PHHCINFC_NO_PIPE_DATA)
+            PH_LOG_LIBNFC_CRIT_STR("Pipe Id present = %d", pHciContext->aSEPipeList[PHHCI_ESE_APDU_PIPE_LIST_INDEX].bPipeId);
+            if (pHciContext->aSEPipeList[PHHCI_ESE_APDU_PIPE_LIST_INDEX].bPipeId == PHHCINFC_NO_PIPE_DATA ||
+                pHciContext->aSEPipeList[PHHCI_ESE_APDU_PIPE_LIST_INDEX].bPipeId == 0x00)
             {
                 return FALSE;
             }
