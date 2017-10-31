@@ -131,6 +131,7 @@ static phLibNfc_Sequence_t gphLibNfc_DistinguishMifareUL[] = {
     {&phLibNfc_MifareULDeactivateCard, &phLibNfc_MifareULProcessDeactivateCard},
     {&phLibNfc_MifareULConnectCard, &phLibNfc_MifareULProcessConnectCard},
     {&phLibNfc_MifareULSendAuthenticateCmd, &phLibNfc_MifareULProcessAuthenticateResp},
+    {&phLibNfc_T2TSendSleepCmd, NULL },
     {&phLibNfc_MifareULDeactivateCard, &phLibNfc_MifareULProcessDeactivateCard},
     {&phLibNfc_MifareULConnectCard, &phLibNfc_MifareULProcessConnectCard},
     {NULL, &phLibNfc_ReqInfoComplete}
