@@ -821,7 +821,26 @@ static NFCSTATUS phNciNfc_StoreNfcATechParams(uint8_t bBuffLen, uint8_t *pBuff,
                         pRemDevInfo->tRemoteDevInfo.Iso14443A_Info.bSelResRespLen = pBuff[bIndex++];
                         /* Update Sel-Resp value*/
                         pRemDevInfo->tRemoteDevInfo.Iso14443A_Info.Sak = pBuff[bIndex++];
-                        wStoreStatus = NFCSTATUS_SUCCESS;
+                        if (phNciNfc_IsVersion1x(phNciNfc_GetContext()))
+                        {
+                             wStoreStatus = NFCSTATUS_SUCCESS;
+                         }
+                        else
+                        {
+                            if ((0 == pBuff[bIndex])||( 2 == pBuff[bIndex]))
+                            {
+                                /* Retrieve HR field from Activiated Notification as per NCI 2.0 spec */
+                                pRemDevInfo->tRemoteDevInfo.Iso14443A_Info.bHRxLen = pBuff[bIndex++];
+                                if(pRemDevInfo->tRemoteDevInfo.Iso14443A_Info.bHRxLen != 0)
+                                {
+                                    phOsalNfc_MemCopy(pRemDevInfo->tRemoteDevInfo.Iso14443A_Info.bHRx,
+                                        &pBuff[bIndex],
+                                        pRemDevInfo->tRemoteDevInfo.Iso14443A_Info.bHRxLen);
+                                    bIndex += pRemDevInfo->tRemoteDevInfo.Iso14443A_Info.bHRxLen;
+                                }
+                                wStoreStatus = NFCSTATUS_SUCCESS;
+                            }
+                        }
                     }
                 }
             }

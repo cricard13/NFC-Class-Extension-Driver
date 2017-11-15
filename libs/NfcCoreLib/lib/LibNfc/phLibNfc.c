@@ -25,6 +25,7 @@
 #define PHLIBNFC_FELICA_REQRES_RESP_LEN (0x0BU) /**< Payload length for response of RequestResp command */
 
 static NFCSTATUS phLibNfc_MifareULSendGetVersionCmd(void *pContext, NFCSTATUS status, void *pInfo);
+static NFCSTATUS phLibNfc_T2TSendSleepCmd(void *pContext, NFCSTATUS status, void *pInfo);
 static NFCSTATUS phLibNfc_MifareULProcessGetVersionResp(void *pContext, NFCSTATUS status, void *pInfo);
 static NFCSTATUS phLibNfc_MifareULSendAuthenticateCmd(void *pContext, NFCSTATUS status, void *pInfo);
 static NFCSTATUS phLibNfc_MifareULProcessAuthenticateResp(void *pContext, NFCSTATUS status, void *pInfo);
@@ -125,10 +126,12 @@ static phLibNfc_Sequence_t gphLibNfc_ReActivate_MFCSeqSelect[] = {
 
 /* Distinguish Mifare Ultralight card between Ultralight, Ultralight C, and Ultralight EV1*/
 static phLibNfc_Sequence_t gphLibNfc_DistinguishMifareUL[] = {
+	{&phLibNfc_T2TSendSleepCmd,NULL },
     {&phLibNfc_MifareULSendGetVersionCmd, &phLibNfc_MifareULProcessGetVersionResp},
     {&phLibNfc_MifareULDeactivateCard, &phLibNfc_MifareULProcessDeactivateCard},
     {&phLibNfc_MifareULConnectCard, &phLibNfc_MifareULProcessConnectCard},
     {&phLibNfc_MifareULSendAuthenticateCmd, &phLibNfc_MifareULProcessAuthenticateResp},
+    {&phLibNfc_T2TSendSleepCmd, NULL },
     {&phLibNfc_MifareULDeactivateCard, &phLibNfc_MifareULProcessDeactivateCard},
     {&phLibNfc_MifareULConnectCard, &phLibNfc_MifareULProcessConnectCard},
     {NULL, &phLibNfc_ReqInfoComplete}
@@ -4948,6 +4951,56 @@ static NFCSTATUS phLibNfc_MifareULSendGetVersionCmd(void *pContext, NFCSTATUS st
 
     PH_LOG_LIBNFC_FUNC_EXIT();
     return wStatus;
+}
+
+static NFCSTATUS phLibNfc_T2TSendSleepCmd(void *pContext, NFCSTATUS status, void *pInfo)
+{
+	static const uint8_t c_t2t_sendSleepCmd[] = {0x05,0x00};
+	static const uint16_t c_timeoutMillis = 50;
+
+	NFCSTATUS wStatus = status;
+	pphLibNfc_Context_t pCtx = (pphLibNfc_Context_t)pContext;
+	phNciNfc_TransceiveInfo_t transceiveInfo = { 0 };
+	phNciNfc_DeviceInfo_t* pDeviceInfo = NULL;
+
+	UNUSED(pInfo);
+	PH_LOG_LIBNFC_FUNC_ENTRY();
+
+	if (NULL != pCtx)
+	{
+		 PH_LOG_LIBNFC_INFO_STR("Nci Version = %x", pCtx->tNfccFeatures.NciVer);
+		if(phNciNfc_IsVersion2x(phNciNfc_GetContext()))
+		{
+			 /* NCI 2.0 -DH is responsible for sending deactivation command to tag  */
+			phOsalNfc_MemCopy(pCtx->aSendBuff, c_t2t_sendSleepCmd, sizeof(c_t2t_sendSleepCmd));
+			transceiveInfo.uCmd.T2TCmd = phNciNfc_eT2TRaw;
+			transceiveInfo.tSendData.pBuff = pCtx->aSendBuff;
+			transceiveInfo.tSendData.wLen = sizeof(c_t2t_sendSleepCmd);
+			transceiveInfo.tRecvData.pBuff = pCtx->aRecvBuff;
+			transceiveInfo.tRecvData.wLen = sizeof(pCtx->aRecvBuff);
+			transceiveInfo.wTimeout = c_timeoutMillis;
+
+			pDeviceInfo = (phNciNfc_DeviceInfo_t*)pCtx->pInfo;
+			wStatus = phNciNfc_Transceive(pCtx->sHwReference.pNciHandle,
+				pDeviceInfo->pRemDevList[0],
+				&transceiveInfo,
+				&phLibNfc_MifareULDistinguishSequence,
+				pCtx);
+		}
+		else
+		{
+			PH_LOG_LIBNFC_INFO_STR("Stack is booted in Nci Version = %x", pCtx->tNfccFeatures.NciVer);
+			phLibNfc_SkipSequenceSeq(pCtx, pCtx->pSeqHandler, 1);
+			wStatus = NFCSTATUS_SUCCESS;
+		}
+	}
+	else
+	{
+		wStatus = NFCSTATUS_INVALID_PARAMETER;
+	}
+
+	PH_LOG_LIBNFC_FUNC_EXIT();
+	return wStatus;
 }
 
 static NFCSTATUS phLibNfc_MifareULProcessGetVersionResp(void *pContext, NFCSTATUS status, void *pInfo)
