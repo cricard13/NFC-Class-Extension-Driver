@@ -893,6 +893,12 @@ typedef struct phNciNfc_PowerState
     BitField_t bSwitchedOnSub3:1;      /**< Switched ON sub-state 3 */
 }phNciNfc_PowerState_t, *pphNciNfc_PowerState_t;/**< pointer to #phNciNfc_PowerState_t */
 
+typedef struct phNciNfc_RoutingEntryCommon
+{
+    uint8_t bRoute;
+    phNciNfc_PowerState_t tPowerState;
+} phNciNfc_RoutingEntryCommon_t;
+
 /**
  * \ingroup grp_nci_nfc
  * \brief Technology based listen mode routing
@@ -963,11 +969,14 @@ typedef struct phNciNfc_RtngConfig
     phNciNfc_LstnModeRtngType_t Type;   /**< The type filed of 'TLV' coding for Listen Mode Routing */
     union
     {
+        // Common
+        phNciNfc_RoutingEntryCommon_t tRoutingEntryCommon;               /**< Common fields across all types */
+        // Specific to type
         phNciNfc_TechnBasedRtngValue_t tTechBasedRtngValue;              /**< Technology based routing value */
         phNciNfc_ProtoBasedRtngValue_t tProtoBasedRtngValue;             /**< Protocol based routing value */
-        phNciNfc_AidBasedRtngValue_t   tAidBasedRtngValue;               /**< Aid based routing value */
+        phNciNfc_AidBasedRtngValue_t tAidBasedRtngValue;                 /**< Aid based routing value */
         phNciNfc_SystemCodeBasedRtngValue_t tSystemCodeBasedRtngValue;   /**< SystemCode based routing value */
-        phNciNfc_ApduPatternBasedRtngValue_t tApduPatternBasedRtngValue;  /**< Apdu Pattern based routing value */
+        phNciNfc_ApduPatternBasedRtngValue_t tApduPatternBasedRtngValue; /**< Apdu Pattern based routing value */
     }LstnModeRtngValue;                                                  /**< Value filed of Listen mode routing entry */
 }phNciNfc_RtngConfig_t, *pphNciNfc_RtngConfig_t;/**< pointer to #phNciNfc_RtngConfig_t */
 
@@ -1537,10 +1546,10 @@ phNciNfc_Nfcee_ModeSet(void * pNciHandle,
                        void *pContext);
 extern
 NFCSTATUS phNciNfc_SE_ModeSet(void * pNciHandle,
-	uint8_t bNfceeID,
-	phNciNfc_NfceeModes_t eNfceeMode,
-	pphNciNfc_IfNotificationCb_t pNotifyCb,
-	void *pContext);
+    uint8_t bNfceeID,
+    phNciNfc_NfceeModes_t eNfceeMode,
+    pphNciNfc_IfNotificationCb_t pNotifyCb,
+    void *pContext);
 
 /**
 * \ingroup grp_nci_nfc
