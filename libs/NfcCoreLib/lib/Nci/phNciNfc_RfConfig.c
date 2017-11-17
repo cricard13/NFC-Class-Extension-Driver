@@ -64,8 +64,8 @@ static NFCSTATUS phNciNfc_ValidateAidBasedParams(pphNciNfc_RtngConfig_t pAidBase
 static NFCSTATUS phNciNfc_ValidateSystemCodeBasedParams(pphNciNfc_RtngConfig_t pSystemCodeBasedRtngEntry, uint16_t *pSize);
 static NFCSTATUS phNciNfc_ValidateApduPatternBasedParams(pphNciNfc_RtngConfig_t pApduPatternBasedRtngEntry, uint16_t *pSize);
 
-static uint8_t phNciNfc_RoutingEntryAddToPayloadTypeSpecific(uint8_t *buffer, phNciNfc_RtngConfig_t *routingEntry);
-static uint8_t phNciNfc_RoutingEntryAddToPayload(uint8_t *buffer, phNciNfc_RtngConfig_t *routingEntry);
+static uint8_t phNciNfc_EntryWriteToPayloadTypeSpecific(uint8_t *buffer, phNciNfc_RtngConfig_t *routingEntry);
+static uint8_t phNciNfc_EntryWriteToPayload(uint8_t *buffer, phNciNfc_RtngConfig_t *routingEntry);
 
 static uint8_t phNciNfc_VerifyRfProtocols(uint8_t bNumMapEntries, pphNciNfc_MappingConfig_t pProtoIfMapping);
 
@@ -751,16 +751,15 @@ phNciNfc_BuildSetLstnRtngCmdPayload(uint8_t                *pBuffer,
 {
     uint8_t bNoOfEntries = 0;
     uint8_t bOffset = 0;
-    uint8_t bBytesUpdated = 0;
     pphNciNfc_RtngConfig_t pLstnRtngEntry = NULL;
 
     PH_LOG_NCI_FUNC_ENTRY();
 
-    uint8_t nciSortedEntryTypes[] = {phNciNfc_e_LstnModeRtngAidBased,
-                                     phNciNfc_e_LstnModeRtngApduPatternBased,
-                                     phNciNfc_e_LstnModeRtngSystemCodeBased,
-                                     phNciNfc_e_LstnModeRtngProtocolBased,
-                                     phNciNfc_e_LstnModeRtngTechBased};
+    static const uint8_t s_nciSortedEntryTypes[] = {phNciNfc_e_LstnModeRtngAidBased,
+                                                    phNciNfc_e_LstnModeRtngApduPatternBased,
+                                                    phNciNfc_e_LstnModeRtngSystemCodeBased,
+                                                    phNciNfc_e_LstnModeRtngProtocolBased,
+                                                    phNciNfc_e_LstnModeRtngTechBased};
 
     /* Update more field into the payload buffer */
     pBuffer[bOffset++] = bMore;
@@ -768,7 +767,7 @@ phNciNfc_BuildSetLstnRtngCmdPayload(uint8_t                *pBuffer,
     /* Update number of routing configuration entries */
     pBuffer[bOffset++] = bNumRtngEntries;
 
-    for (uint8_t i = 0, currentType = nciSortedEntryTypes[i]; i < sizeof(nciSortedEntryTypes); i++)
+    for (uint8_t i = 0, currentType = s_nciSortedEntryTypes[i]; i < sizeof(s_nciSortedEntryTypes); i++)
     {
         for(bNoOfEntries = 0; bNoOfEntries < bNumRtngEntries; bNoOfEntries++)
         {
@@ -776,8 +775,7 @@ phNciNfc_BuildSetLstnRtngCmdPayload(uint8_t                *pBuffer,
 
             if (pLstnRtngEntry->Type == currentType)
             {
-                bBytesUpdated = phNciNfc_RoutingEntryAddToPayload(&pBuffer[bOffset],pLstnRtngEntry);
-                bOffset += bBytesUpdated;
+                bOffset += phNciNfc_EntryWriteToPayload(&pBuffer[bOffset], pLstnRtngEntry);
             }
         }
     }
@@ -3781,8 +3779,8 @@ phNciNfc_ValidatePollNfcDepParams(pphNciNfc_PollNfcDepDiscParams_t pPollNfcDepCo
 }
 
 static uint8_t
-phNciNfc_RoutingEntryAddToPayloadTypeSpecific(uint8_t *buffer,
-                                              phNciNfc_RtngConfig_t *routingEntry)
+phNciNfc_EntryWriteToPayloadTypeSpecific(uint8_t *buffer,
+                                         phNciNfc_RtngConfig_t *routingEntry)
 {
     uint8_t bytesCount = 0;
     switch (routingEntry->Type)
@@ -3834,8 +3832,8 @@ phNciNfc_RoutingEntryAddToPayloadTypeSpecific(uint8_t *buffer,
 }
 
 static uint8_t
-phNciNfc_RoutingEntryAddToPayload(uint8_t *buffer,
-                                  phNciNfc_RtngConfig_t *routingEntry)
+phNciNfc_EntryWriteToPayload(uint8_t *buffer,
+                             phNciNfc_RtngConfig_t *routingEntry)
 {
     uint8_t offset = 0;
     phNciNfc_RoutingEntryCommon_t *routingEntryCommon = NULL;
@@ -3859,7 +3857,7 @@ phNciNfc_RoutingEntryAddToPayload(uint8_t *buffer,
     PHNCINFC_RFCONFIG_SW_ON_SUB3(&buffer[offset], routingEntryCommon->tPowerState.bSwitchedOnSub3);
     offset++;
 
-    offset += phNciNfc_RoutingEntryAddToPayloadTypeSpecific(&buffer[offset], routingEntry);
+    offset += phNciNfc_EntryWriteToPayloadTypeSpecific(&buffer[offset], routingEntry);
 
     PH_LOG_NCI_FUNC_EXIT();
     return offset;
