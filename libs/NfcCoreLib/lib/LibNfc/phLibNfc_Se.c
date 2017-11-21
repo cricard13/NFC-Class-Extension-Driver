@@ -1384,14 +1384,16 @@ phLibNfc_SetModeSeq(void *pContext,
 {
     NFCSTATUS wIntStatus = wStatus;
     pphLibNfc_LibContext_t pLibContext = (pphLibNfc_LibContext_t)pContext;
+    pphNciNfc_NfceeDeviceHandle_t pNfceeHandle;
     UNUSED(pInfo);
     PH_LOG_LIBNFC_FUNC_ENTRY();
     if((NULL != pLibContext) && (phLibNfc_GetContext() == pLibContext))
     {
         if(NFCSTATUS_SUCCESS == wIntStatus)
         {
+            pNfceeHandle = (pphNciNfc_NfceeDeviceHandle_t)pLibContext->sSeContext.pActiveSeInfo->hSecureElement;
             wIntStatus = phNciNfc_Nfcee_ModeSet(pLibContext->sHwReference.pNciHandle,
-                        (void *)pLibContext->sSeContext.pActiveSeInfo->hSecureElement,
+                        pNfceeHandle->tDevInfo.bNfceeID,
                         pLibContext->sSeContext.eNfceeMode,
                         (pphNciNfc_IfNotificationCb_t)&phLibNfc_InternalSequence,
                         (void *)pLibContext);

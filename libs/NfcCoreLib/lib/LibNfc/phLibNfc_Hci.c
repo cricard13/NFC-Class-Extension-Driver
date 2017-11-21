@@ -1326,15 +1326,15 @@ static NFCSTATUS phLibNfc_NfceeModeSet(void *pContext, NFCSTATUS wStatus, void *
     PH_LOG_LIBNFC_FUNC_ENTRY();
     if((NULL != pLibContext) && (phLibNfc_GetContext() == pLibContext))
     {
-        pNfceeHandle = (pphNciNfc_NfceeDeviceHandle_t)pLibContext->sSeContext.pActiveSeInfo->hSecureElement;
+        pNfceeHandle=(pphNciNfc_NfceeDeviceHandle_t)pLibContext->sSeContext.pActiveSeInfo->hSecureElement;
         if (pNfceeHandle->tDevInfo.eNfceeStatus == PH_NCINFC_EXT_NFCEEMODE_ENABLE && pNfceeHandle->tDevInfo.bNfceeID == phHciNfc_e_TerminalHostID)
         {
             wIntStatus = NFCSTATUS_SUCCESS;
         }
         else
         {
-           wIntStatus = phNciNfc_Nfcee_ModeSet(pLibContext->sHwReference.pNciHandle,
-                                    pLibContext->sSeContext.pActiveSeInfo->hSecureElement,
+            wIntStatus = phNciNfc_Nfcee_ModeSet(pLibContext->sHwReference.pNciHandle,
+                                    pNfceeHandle->tDevInfo.bNfceeID,
                                     PH_NCINFC_EXT_NFCEEMODE_ENABLE,
                                     (pphNciNfc_IfNotificationCb_t)&phLibNfc_InternalSequence,
                                     (void *)pLibContext);
