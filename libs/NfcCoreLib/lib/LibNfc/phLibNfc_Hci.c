@@ -770,7 +770,7 @@ static NFCSTATUS phLibNfc_HciDataSendProc(void* pContext,NFCSTATUS status,void* 
                     {
                         PH_LOG_LIBNFC_CRIT_STR("eSE Transceive received data after Timeout");
                     }
-                }                
+                }
                 else
                 {
                     PH_LOG_LIBNFC_CRIT_STR("Invalid data received!");
@@ -906,7 +906,7 @@ phHciNfc_ProcessEventsOnApduPipe(void *pContext, NFCSTATUS wStatus, void *pInfo)
     NFCSTATUS wSETxRxTimerStatus;
     pphHciNfc_HciContext_t    pHciContext = NULL;
     phHciNfc_ReceiveParams_t *pReceivedParams = (phHciNfc_ReceiveParams_t *)pInfo;
-    
+
     phLibNfc_Handle hSecureElement = (phLibNfc_Handle)NULL;
     uint8_t bCount = 0;
     pphLibNfc_LibContext_t  pLibContext = phLibNfc_GetContext();
@@ -1297,7 +1297,7 @@ static NFCSTATUS phLibNfc_HostModeSet(void *pContext, NFCSTATUS wStatus, void *p
                 PH_LOG_LIBNFC_INFO_STR("Pipe is already present at APDU Gate for SE: %X", ahostId);
                 return NFCSTATUS_SUCCESS;
             }
-            wIntStatus = phNciNfc_SE_ModeSet(pLibContext->sHwReference.pNciHandle,
+            wIntStatus = phNciNfc_Nfcee_ModeSet(pLibContext->sHwReference.pNciHandle,
                 ahostId,
                 PH_NCINFC_EXT_NFCEEMODE_ENABLE,
                 (pphNciNfc_IfNotificationCb_t)&phLibNfc_InternalSequence,
