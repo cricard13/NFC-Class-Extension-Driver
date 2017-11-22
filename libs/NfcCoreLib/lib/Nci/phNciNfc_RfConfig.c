@@ -751,6 +751,7 @@ phNciNfc_BuildSetLstnRtngCmdPayload(uint8_t                *pBuffer,
 {
     uint8_t bNoOfEntries = 0;
     uint8_t bOffset = 0;
+    uint8_t currentType;
     pphNciNfc_RtngConfig_t pLstnRtngEntry = NULL;
 
     PH_LOG_NCI_FUNC_ENTRY();
@@ -767,8 +768,9 @@ phNciNfc_BuildSetLstnRtngCmdPayload(uint8_t                *pBuffer,
     /* Update number of routing configuration entries */
     pBuffer[bOffset++] = bNumRtngEntries;
 
-    for (uint8_t i = 0, currentType = s_nciSortedEntryTypes[i]; i < sizeof(s_nciSortedEntryTypes); i++)
+    for (uint8_t i = 0; i < sizeof(s_nciSortedEntryTypes); i++)
     {
+        currentType = s_nciSortedEntryTypes[i];
         for(bNoOfEntries = 0; bNoOfEntries < bNumRtngEntries; bNoOfEntries++)
         {
             pLstnRtngEntry = &(pRtngConfig[bNoOfEntries]);
